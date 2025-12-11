@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Minimalist Budget Tracker</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+      color: #222;
+      line-height: 1.5;
+    }
+
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    label {
+      font-weight: 600;
+    }
+
+    input[type="number"] {
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .inline-input {
+      width: 120px;
+      display: inline-block;
+      margin-left: 8px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .summary-item {
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: #fafafa;
+      border: 1px solid #e0e0e0;
+      font-size: 14px;
+    }
+
+    .summary-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #555;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #e0e0e0;
+      padding: 6px 8px;
+      text-align: left;
+    }
+
+    th {
+      background: #f0f0f0;
+      font-weight: 600;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #fbfbfb;
+    }
+
+    .note-input {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      padding: 4px 6px;
+      font-size: 13px;
+    }
+
+    .small-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .positive {
+      color: #006400;
+      font-weight: 600;
+    }
+
+    .negative {
+      color: #8b0000;
+      font-weight: 600;
+    }
+
+    .button-row {
+      margin-top: 12px;
+    }
+
+    button {
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: none;
+      background: #333;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #111;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Minimalist Budget Tracker</h1>
+
+  <div class="card">
+    <h2>Budget Settings</h2>
+    <p>
+      <label for="budgetInput">Monthly budget (total you can spend):</label>
+      <input
+        id="budgetInput"
+        type="number"
+        min="0"
+        step="0.01"
+        value="400"
+        class="inline-input"
+      />
+      <span class="small-text">Assumes a 30-day month and 4 tracking weeks.</span>
+    </p>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <strong>Daily Target</strong>
+        <span id="dailyTarget">$0.00</span>
+        <span class="small-text">Maximum average per day.</span>
+      </div>
+      <div class="summary-item">
+        <strong>Weekly Target (4 weeks)</strong>
+        <span id="weeklyTarget">$0.00</span>
+        <span class="small-text">Budget / 4, used for the summary below.</span>
+      </div>
+      <div class="summary-item">
+        <strong>Total Spent This Month</strong>
+        <span id="totalSpent">$0.00</span>
+      </div>
+      <div class="summary-item">
+        <strong>Remaining This Month</strong>
+        <span id="remaining" class="positive">$0.00</span>
+      </div>
+    </div>
+    <div class="button-row">
+      <button id="exportBtn">Download CSV Export</button>
+      <span class="small-text">Exports all days, notes, and budget status.</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Daily Tracker (30 Days)</h2>
+    <p class="small-text">
+      Enter what you spend each day. The totals and weekly summary will update automatically.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 60px;">Day</th>
+          <th style="width: 120px;">Amount Spent</th>
+          <th>Note (optional)</th>
+        </tr>
+      </thead>
+      <tbody id="dailyTableBody">
+        <!-- Rows will be inserted by JavaScript -->
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Weekly Summary</h2>
+    <p class="small-text">
+      Weeks are grouped as:<br>
+      Week 1: Days 1–7, Week 2: 8–14, Week 3: 15–21, Week 4: 22–30.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Week</th>
+          <th>Budget</th>
+          <th>Spent</th>
+          <th>Difference</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Week 1 (Days 1–7)</td>
+          <td id="weekBudget1">$0.00</td>
+          <td id="weekSpent1">$0.00</td>
+          <td id="weekDiff1">$0.00</td>
+        </tr>
+        <tr>
+          <td>Week 2 (Days 8–14)</td>
+          <td id="weekBudget2">$0.00</td>
+          <td id="weekSpent2">$0.00</td>
+          <td id="weekDiff2">$0.00</td>
+        </tr>
+        <tr>
+          <td>Week 3 (Days 15–21)</td>
+          <td id="weekBudget3">$0.00</td>
+          <td id="weekSpent3">$0.00</td>
+          <td id="weekDiff3">$0.00</td>
+        </tr>
+        <tr>
+          <td>Week 4 (Days 22–30)</td>
+          <td id="weekBudget4">$0.00</td>
+          <td id="weekSpent4">$0.00</td>
+          <td id="weekDiff4">$0.00</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    const budgetInput = document.getElementById("budgetInput");
+    const dailyTargetSpan = document.getElementById("dailyTarget");
+    const weeklyTargetSpan = document.getElementById("weeklyTarget");
+    const totalSpentSpan = document.getElementById("totalSpent");
+    const remainingSpan = document.getElementById("remaining");
+    const exportBtn = document.getElementById("exportBtn");
+
+    const weekBudgetSpans = [
+      document.getElementById("weekBudget1"),
+      document.getElementById("weekBudget2"),
+      document.getElementById("weekBudget3"),
+      document.getElementById("weekBudget4"),
+    ];
+
+    const weekSpentSpans = [
+      document.getElementById("weekSpent1"),
+      document.getElementById("weekSpent2"),
+      document.getElementById("weekSpent3"),
+      document.getElementById("weekSpent4"),
+    ];
+
+    const weekDiffSpans = [
+      document.getElementById("weekDiff1"),
+      document.getElementById("weekDiff2"),
+      document.getElementById("weekDiff3"),
+      document.getElementById("weekDiff4"),
+    ];
+
+    const dailyTableBody = document.getElementById("dailyTableBody");
+
+    function createDailyRows() {
+      dailyTableBody.innerHTML = "";
+      const daysInMonth = 30; // fixed for this tracker
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const tr = document.createElement("tr");
+
+        const dayCell = document.createElement("td");
+        dayCell.textContent = day;
+
+        const amountCell = document.createElement("td");
+        const input = document.createElement("input");
+        input.type = "number";
+        input.min = "0";
+        input.step = "0.01";
+        input.className = "daily-input";
+        input.dataset.day = String(day);
+        input.addEventListener("input", recalcSummary);
+        amountCell.appendChild(input);
+
+        const noteCell = document.createElement("td");
+        const noteInput = document.createElement("input");
+        noteInput.type = "text";
+        noteInput.className = "note-input";
+        noteInput.placeholder = "Groceries, gas, etc.";
+        noteCell.appendChild(noteInput);
+
+        tr.appendChild(dayCell);
+        tr.appendChild(amountCell);
+        tr.appendChild(noteCell);
+
+        dailyTableBody.appendChild(tr);
+      }
+    }
+
+    function recalcSummary() {
+      const budget = parseFloat(budgetInput.value) || 0;
+      const daysInMonth = 30;
+
+      const dailyTarget = budget / daysInMonth;
+      const weeklyTarget = budget / 4; // 4 tracking weeks
+
+      dailyTargetSpan.textContent = "$" + dailyTarget.toFixed(2);
+      weeklyTargetSpan.textContent = "$" + weeklyTarget.toFixed(2);
+
+      // Apply weekly budget to each of the 4 weeks
+      for (let i = 0; i < 4; i++) {
+        weekBudgetSpans[i].textContent = "$" + weeklyTarget.toFixed(2);
+      }
+
+      const inputs = document.querySelectorAll(".daily-input");
+      let total = 0;
+      const weeklySpent = [0, 0, 0, 0];
+
+      inputs.forEach((input) => {
+        const value = parseFloat(input.value) || 0;
+        const day = parseInt(input.dataset.day, 10);
+        total += value;
+
+        // Week mapping: 1–7 -> week 0, 8–14 -> week 1, 15–21 -> week 2, 22–30 -> week 3
+        let weekIndex = Math.floor((day - 1) / 7);
+        if (weekIndex > 3) weekIndex = 3; // just in case
+        weeklySpent[weekIndex] += value;
+      });
+
+      totalSpentSpan.textContent = "$" + total.toFixed(2);
+
+      const remaining = budget - total;
+      remainingSpan.textContent = "$" + remaining.toFixed(2);
+
+      // Color remaining positive/negative
+      if (remaining < 0) {
+        remainingSpan.classList.remove("positive");
+        remainingSpan.classList.add("negative");
+      } else {
+        remainingSpan.classList.remove("negative");
+        remainingSpan.classList.add("positive");
+      }
+
+      // Update weekly spent and differences
+      for (let i = 0; i < 4; i++) {
+        const spent = weeklySpent[i];
+        const diff = weeklyTarget - spent;
+
+        weekSpentSpans[i].textContent = "$" + spent.toFixed(2);
+        weekDiffSpans[i].textContent = (diff >= 0 ? "+" : "") + "$" + diff.toFixed(2);
+        weekDiffSpans[i].className = diff < 0 ? "negative" : "positive";
+      }
+    }
+
+    function exportCSV() {
+      // Make sure numbers are up to date
+      recalcSummary();
+
+      const budget = parseFloat(budgetInput.value) || 0;
+      const daysInMonth = 30;
+      const dailyTarget = budget / daysInMonth;
+      const weeklyTarget = budget / 4;
+
+      const inputs = document.querySelectorAll(".daily-input");
+      const notes = document.querySelectorAll(".note-input");
+
+      let total = 0;
+      const weeklySpent = [0, 0, 0, 0];
+
+      // First pass: compute totals
+      inputs.forEach((input) => {
+        const value = parseFloat(input.value) || 0;
+        const day = parseInt(input.dataset.day, 10);
+        total += value;
+
+        let weekIndex = Math.floor((day - 1) / 7);
+        if (weekIndex > 3) weekIndex = 3;
+        weeklySpent[weekIndex] += value;
+      });
+
+      const monthDiff = budget - total;
+      const withinMonthBudget = monthDiff >= 0 ? "Yes" : "No";
+
+      // CSV header
+      const rows = [];
+      rows.push([
+        "Day",
+        "Amount",
+        "Note",
+        "WeekNumber",
+        "DailyTarget",
+        "OverUnderDaily",
+        "WithinDailyBudget",
+        "WeeklyTarget",
+        "WeekSpent",
+        "OverUnderWeek",
+        "WithinWeeklyBudget",
+        "MonthlyBudget",
+        "TotalMonthSpent",
+        "OverUnderMonth",
+        "WithinMonthlyBudget"
+      ].join(","));
+
+      // Second pass: per-day rows
+      for (let i = 0; i < inputs.length; i++) {
+        const input = inputs[i];
+        const noteInput = notes[i];
+
+        const day = parseInt(input.dataset.day, 10);
+        const amount = parseFloat(input.value) || 0;
+        const note = noteInput.value || "";
+
+        let weekIndex = Math.floor((day - 1) / 7);
+        if (weekIndex > 3) weekIndex = 3;
+
+        const weekNumber = weekIndex + 1;
+        const weekSpent = weeklySpent[weekIndex];
+        const overUnderDaily = amount - dailyTarget;
+        const overUnderWeek = weekSpent - weeklyTarget;
+
+        const withinDaily = overUnderDaily <= 0 ? "Yes" : "No";
+        const withinWeek = overUnderWeek <= 0 ? "Yes" : "No";
+
+        const row = [
+          day,
+          amount.toFixed(2),
+          note,
+          weekNumber,
+          dailyTarget.toFixed(2),
+          overUnderDaily.toFixed(2),
+          withinDaily,
+          weeklyTarget.toFixed(2),
+          weekSpent.toFixed(2),
+          overUnderWeek.toFixed(2),
+          withinWeek,
+          budget.toFixed(2),
+          total.toFixed(2),
+          monthDiff.toFixed(2),
+          withinMonthBudget
+        ].map((val) => {
+          // Escape quotes and wrap all fields in quotes
+          const safe = String(val).replace(/"/g, '""');
+          return `"${safe}"`;
+        }).join(",");
+
+        rows.push(row);
+      }
+
+      const csvContent = rows.join("\r\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "budget-tracker-export.csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // Set up page
+    createDailyRows();
+    budgetInput.addEventListener("input", recalcSummary);
+    exportBtn.addEventListener("click", exportCSV);
+    recalcSummary();
+  </script>
+
+</body>
+</html>
