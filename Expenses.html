@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Monthly Expense Tracker (191 Items)</title>
+  <style>
+    :root { --bg:#0b0c10; --card:#14161c; --text:#e9eef5; --muted:#a9b3c1; --line:#242a35; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background:var(--bg); color:var(--text); }
+    header { padding:16px 18px; border-bottom:1px solid var(--line); position:sticky; top:0; background:rgba(11,12,16,.92); backdrop-filter: blur(8px); }
+    h1 { margin:0; font-size:18px; font-weight:700; }
+    .sub { margin-top:6px; color:var(--muted); font-size:13px; }
+    main { padding:16px 18px 32px; max-width:1200px; margin:0 auto; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:end; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; }
+    .controls { display:grid; grid-template-columns: 200px 220px 1fr 180px 180px; gap:12px; width:100%; }
+    @media (max-width: 980px) { .controls { grid-template-columns: 1fr 1fr; } }
+    label { display:block; color:var(--muted); font-size:12px; margin-bottom:6px; }
+    input, select, button, textarea {
+      width:100%;
+      background:#0f1117;
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:10px;
+      padding:10px 10px;
+      font-size:14px;
+      outline:none;
+    }
+    textarea { min-height: 38px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { border-color:#3a4353; }
+    button { cursor:pointer; font-weight:700; }
+    .btnRow { display:flex; gap:10px; flex-wrap:wrap; }
+    .btn { width:auto; padding:10px 12px; }
+    .btnSecondary { background:#111522; }
+    .btnDanger { background:#2a1010; border-color:#3a1a1a; }
+    .totals { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-top:12px; }
+    @media (max-width: 980px) { .totals { grid-template-columns: 1fr; } }
+    .kpi { display:flex; flex-direction:column; gap:4px; }
+    .kpi .v { font-size:20px; font-weight:800; }
+    .kpi .t { color:var(--muted); font-size:12px; }
+    .tableWrap { margin-top:14px; overflow:auto; border-radius:12px; border:1px solid var(--line); }
+    table { width:100%; border-collapse:collapse; min-width: 980px; background:var(--card); }
+    thead th { position:sticky; top:0; background:#12141a; z-index:1; }
+    th, td { padding:10px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { text-align:left; font-size:12px; color:var(--muted); font-weight:700; }
+    td { font-size:14px; }
+    .mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .pill { display:inline-block; padding:4px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); font-size:12px; }
+    .right { text-align:right; }
+    .small { font-size:12px; color:var(--muted); }
+    .inline { display:flex; gap:8px; align-items:center; }
+    .amt { width:120px; }
+    .note { width:260px; }
+    .toggle { width:18px; height:18px; }
+    .stickyFooter { position:sticky; bottom:0; background:rgba(11,12,16,.92); backdrop-filter: blur(8px); border-top:1px solid var(--line); padding:10px 18px; }
+    .footerRow { display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; max-width:1200px; margin:0 auto; }
+    .warn { color:#ffcc66; }
+    a { color:#9ecbff; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Monthly Expense Tracker</h1>
+  <div class="sub">191 preset expense lines, stored locally in your browser (localStorage). No account, no server.</div>
+</header>
+
+<main>
+  <div class="card">
+    <div class="controls">
+      <div>
+        <label for="month">Month</label>
+        <input id="month" type="month" />
+      </div>
+
+      <div>
+        <label for="category">Category</label>
+        <select id="category"></select>
+      </div>
+
+      <div>
+        <label for="search">Search (name or category)</label>
+        <input id="search" type="text" placeholder="Example: rent, insurance, groceries" />
+      </div>
+
+      <div>
+        <label for="minAmt">Amount filter</label>
+        <div class="inline">
+          <input id="minAmt" class="amt mono" type="number" step="0.01" placeholder="Min" />
+          <input id="maxAmt" class="amt mono" type="number" step="0.01" placeholder="Max" />
+        </div>
+      </div>
+
+      <div>
+        <label>Actions</label>
+        <div class="btnRow">
+          <button class="btn" id="saveAll">Save</button>
+          <button class="btn btnSecondary" id="exportJson">Export JSON</button>
+          <button class="btn btnSecondary" id="exportCsv">Export CSV</button>
+          <button class="btn btnSecondary" id="importJson">Import JSON</button>
+          <button class="btn btnDanger" id="resetMonth">Reset Month</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="totals">
+      <div class="kpi">
+        <div class="v mono" id="kpiTotal">$0.00</div>
+        <div class="t">Total spent (month)</div>
+      </div>
+      <div class="kpi">
+        <div class="v mono" id="kpiActive">0</div>
+        <div class="t">Active lines (nonzero or included)</div>
+      </div>
+      <div class="kpi">
+        <div class="v mono" id="kpiAvg">$0.00</div>
+        <div class="t">Average per active line</div>
+      </div>
+    </div>
+
+    <div class="small" style="margin-top:10px;">
+      Tip: you can leave “included” checked for recurring items even if the amount is $0 (for planning), or uncheck to hide them.
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="row" style="justify-content:space-between;">
+      <div class="inline">
+        <span class="pill" id="countPill">0 lines</span>
+        <span class="pill" id="sumPill">$0.00 shown</span>
+      </div>
+
+      <div class="inline">
+        <label style="margin:0;">
+          <input id="showOnlyIncluded" type="checkbox" class="toggle" />
+          <span class="small">Show only included</span>
+        </label>
+        <label style="margin:0;">
+          <input id="showOnlyNonZero" type="checkbox" class="toggle" />
+          <span class="small">Show only nonzero</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="tableWrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:90px;">Included</th>
+          <th style="width:180px;">Category</th>
+          <th>Expense</th>
+          <th style="width:140px;" class="right">Amount</th>
+          <th style="width:280px;">Note</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<div class="stickyFooter">
+  <div class="footerRow">
+    <div class="small">
+      Data is saved in your browser only. Use Export JSON as a backup if you clear site data.
+    </div>
+    <div class="small">
+      If totals look wrong: make sure the correct month is selected.
+    </div>
+  </div>
+</div>
+
+<script>
+/* 191 expense lines (category + name) */
+const PRESET_ITEMS = [
+  // Housing (20)
+  {category:"Housing", name:"Rent"},
+  {category:"Housing", name:"Mortgage payment"},
+  {category:"Housing", name:"Property taxes"},
+  {category:"Housing", name:"Homeowner’s insurance"},
+  {category:"Housing", name:"Renter’s insurance"},
+  {category:"Housing", name:"HOA/condo fees"},
+  {category:"Housing", name:"Security deposit (amortized)"},
+  {category:"Housing", name:"Application fees"},
+  {category:"Housing", name:"Moving costs"},
+  {category:"Housing", name:"Storage unit"},
+  {category:"Housing", name:"Temporary housing"},
+  {category:"Housing", name:"Maintenance & repairs"},
+  {category:"Housing", name:"Home cleaning"},
+  {category:"Housing", name:"Lawn care"},
+  {category:"Housing", name:"Snow removal"},
+  {category:"Housing", name:"Pest control"},
+  {category:"Housing", name:"Furniture replacement"},
+  {category:"Housing", name:"Home supplies (filters/bulbs)"},
+  {category:"Housing", name:"Decor"},
+  {category:"Housing", name:"Laundry machines/fees (housing)"},
+
+  // Utilities (15)
+  {category:"Utilities", name:"Electricity"},
+  {category:"Utilities", name:"Natural gas"},
+  {category:"Utilities", name:"Water"},
+  {category:"Utilities", name:"Sewer"},
+  {category:"Utilities", name:"Trash/recycling"},
+  {category:"Utilities", name:"Internet"},
+  {category:"Utilities", name:"Modem/router rental"},
+  {category:"Utilities", name:"Cell phone plan"},
+  {category:"Utilities", name:"Mobile device payment"},
+  {category:"Utilities", name:"Data overages"},
+  {category:"Utilities", name:"Landline phone"},
+  {category:"Utilities", name:"Home security monitoring"},
+  {category:"Utilities", name:"Streaming TV add-on"},
+  {category:"Utilities", name:"Propane/heating oil"},
+  {category:"Utilities", name:"PO box/mailbox"},
+
+  // Food (15)
+  {category:"Food", name:"Groceries"},
+  {category:"Food", name:"Staples/paper goods"},
+  {category:"Food", name:"Cleaning supplies"},
+  {category:"Food", name:"Coffee/tea"},
+  {category:"Food", name:"Condiments/spices"},
+  {category:"Food", name:"Snacks"},
+  {category:"Food", name:"Takeout"},
+  {category:"Food", name:"Delivery fees/tips"},
+  {category:"Food", name:"Restaurants"},
+  {category:"Food", name:"Work meals"},
+  {category:"Food", name:"Meal kits"},
+  {category:"Food", name:"Diet/specialty foods"},
+  {category:"Food", name:"Alcohol"},
+  {category:"Food", name:"Water/bottled drinks"},
+  {category:"Food", name:"Bulk/warehouse membership (food)"},
+
+  // Transportation (20)
+  {category:"Transportation", name:"Car payment"},
+  {category:"Transportation", name:"Auto insurance"},
+  {category:"Transportation", name:"Gasoline"},
+  {category:"Transportation", name:"EV charging"},
+  {category:"Transportation", name:"Maintenance & repairs"},
+  {category:"Transportation", name:"Oil changes"},
+  {category:"Transportation", name:"Tires"},
+  {category:"Transportation", name:"Registration"},
+  {category:"Transportation", name:"Inspection/emissions"},
+  {category:"Transportation", name:"Parking"},
+  {category:"Transportation", name:"Tolls"},
+  {category:"Transportation", name:"Public transit pass"},
+  {category:"Transportation", name:"Rideshare/taxi"},
+  {category:"Transportation", name:"Bike maintenance"},
+  {category:"Transportation", name:"Car wash"},
+  {category:"Transportation", name:"Roadside assistance"},
+  {category:"Transportation", name:"Vehicle property tax"},
+  {category:"Transportation", name:"Car accessories"},
+  {category:"Transportation", name:"Driver’s license renewals"},
+  {category:"Transportation", name:"Traffic tickets/fines"},
+
+  // Health (18)
+  {category:"Health", name:"Health insurance premium"},
+  {category:"Health", name:"Dental insurance"},
+  {category:"Health", name:"Vision insurance"},
+  {category:"Health", name:"Copays"},
+  {category:"Health", name:"Deductibles"},
+  {category:"Health", name:"Prescriptions"},
+  {category:"Health", name:"OTC medicine"},
+  {category:"Health", name:"Therapy/counseling"},
+  {category:"Health", name:"Psychiatric care"},
+  {category:"Health", name:"Dental work"},
+  {category:"Health", name:"Glasses/contacts"},
+  {category:"Health", name:"Emergency care"},
+  {category:"Health", name:"Physical therapy"},
+  {category:"Health", name:"Lab tests"},
+  {category:"Health", name:"Vaccines"},
+  {category:"Health", name:"Medical devices/supplies"},
+  {category:"Health", name:"Supplements"},
+  {category:"Health", name:"Gym/fitness membership"},
+
+  // Personal Care (12)
+  {category:"Personal Care", name:"Haircuts"},
+  {category:"Personal Care", name:"Hair products"},
+  {category:"Personal Care", name:"Skincare"},
+  {category:"Personal Care", name:"Soap/shampoo"},
+  {category:"Personal Care", name:"Deodorant"},
+  {category:"Personal Care", name:"Razors"},
+  {category:"Personal Care", name:"Cosmetics"},
+  {category:"Personal Care", name:"Nail care"},
+  {category:"Personal Care", name:"Hygiene products"},
+  {category:"Personal Care", name:"Laundry detergent"},
+  {category:"Personal Care", name:"Dry cleaning"},
+  {category:"Personal Care", name:"Fragrance"},
+
+  // Clothing (10)
+  {category:"Clothing", name:"Everyday clothing"},
+  {category:"Clothing", name:"Work clothes"},
+  {category:"Clothing", name:"Shoes"},
+  {category:"Clothing", name:"Seasonal gear"},
+  {category:"Clothing", name:"Underwear & socks"},
+  {category:"Clothing", name:"Alterations"},
+  {category:"Clothing", name:"Accessories"},
+  {category:"Clothing", name:"Athletic wear"},
+  {category:"Clothing", name:"Outerwear upgrades"},
+  {category:"Clothing", name:"Bags/backpacks"},
+
+  // Insurance (10)
+  {category:"Insurance", name:"Auto insurance (extra)"},
+  {category:"Insurance", name:"Renter’s insurance (extra)"},
+  {category:"Insurance", name:"Life insurance"},
+  {category:"Insurance", name:"Disability insurance"},
+  {category:"Insurance", name:"Umbrella insurance"},
+  {category:"Insurance", name:"Travel insurance"},
+  {category:"Insurance", name:"Identity theft insurance"},
+  {category:"Insurance", name:"Valuables insurance"},
+  {category:"Insurance", name:"Home warranty"},
+  {category:"Insurance", name:"Liability add-ons"},
+
+  // Debt & Banking (12)
+  {category:"Debt & Banking", name:"Credit card payments"},
+  {category:"Debt & Banking", name:"Student loans"},
+  {category:"Debt & Banking", name:"Personal loans"},
+  {category:"Debt & Banking", name:"Medical debt payments"},
+  {category:"Debt & Banking", name:"BNPL installments"},
+  {category:"Debt & Banking", name:"Interest charges"},
+  {category:"Debt & Banking", name:"Late fees"},
+  {category:"Debt & Banking", name:"Overdraft fees"},
+  {category:"Debt & Banking", name:"Bank account fees"},
+  {category:"Debt & Banking", name:"ATM fees"},
+  {category:"Debt & Banking", name:"Wire/transfer fees"},
+  {category:"Debt & Banking", name:"Credit monitoring"},
+
+  // Savings & Investing (10)
+  {category:"Savings & Investing", name:"Emergency fund"},
+  {category:"Savings & Investing", name:"Retirement (401k/IRA)"},
+  {category:"Savings & Investing", name:"Brokerage investing"},
+  {category:"Savings & Investing", name:"HSA contributions"},
+  {category:"Savings & Investing", name:"Education savings"},
+  {category:"Savings & Investing", name:"Sinking fund: car"},
+  {category:"Savings & Investing", name:"Sinking fund: travel"},
+  {category:"Savings & Investing", name:"Sinking fund: gifts"},
+  {category:"Savings & Investing", name:"Sinking fund: home"},
+  {category:"Savings & Investing", name:"Big purchase fund"},
+
+  // Work & Professional (12)
+  {category:"Work & Professional", name:"Work equipment"},
+  {category:"Work & Professional", name:"Software subscriptions"},
+  {category:"Work & Professional", name:"Certifications"},
+  {category:"Work & Professional", name:"Continuing education"},
+  {category:"Work & Professional", name:"Licensing fees"},
+  {category:"Work & Professional", name:"Union dues"},
+  {category:"Work & Professional", name:"Coworking space"},
+  {category:"Work & Professional", name:"Home office supplies"},
+  {category:"Work & Professional", name:"Professional memberships"},
+  {category:"Work & Professional", name:"Conferences"},
+  {category:"Work & Professional", name:"Domain/website hosting"},
+  {category:"Work & Professional", name:"Marketing/ads"},
+
+  // Technology (10)
+  {category:"Technology", name:"Phone replacement fund"},
+  {category:"Technology", name:"Laptop/computer fund"},
+  {category:"Technology", name:"Cloud storage"},
+  {category:"Technology", name:"App subscriptions"},
+  {category:"Technology", name:"Streaming services"},
+  {category:"Technology", name:"Gaming subscription"},
+  {category:"Technology", name:"VPN/security"},
+  {category:"Technology", name:"Repairs"},
+  {category:"Technology", name:"Printer/ink"},
+  {category:"Technology", name:"Creative gear (camera/tablet)"},
+
+  // Entertainment (10)
+  {category:"Entertainment", name:"Movies"},
+  {category:"Entertainment", name:"Concerts"},
+  {category:"Entertainment", name:"Sports events"},
+  {category:"Entertainment", name:"Museums/attractions"},
+  {category:"Entertainment", name:"Books"},
+  {category:"Entertainment", name:"Games"},
+  {category:"Entertainment", name:"Hobbies/crafts"},
+  {category:"Entertainment", name:"Classes/workshops"},
+  {category:"Entertainment", name:"Local travel day trips"},
+  {category:"Entertainment", name:"Subscriptions (patreon/etc.)"},
+
+  // Social (8)
+  {category:"Social", name:"Gifts"},
+  {category:"Social", name:"Dating"},
+  {category:"Social", name:"Parties/hosting"},
+  {category:"Social", name:"Weddings"},
+  {category:"Social", name:"Funerals"},
+  {category:"Social", name:"Charitable donations"},
+  {category:"Social", name:"Tips/gratuities"},
+  {category:"Social", name:"Clubs/memberships (social)"},
+
+  // Family/Dependents (4)
+  {category:"Family/Dependents", name:"Childcare"},
+  {category:"Family/Dependents", name:"Tuition"},
+  {category:"Family/Dependents", name:"School supplies"},
+  {category:"Family/Dependents", name:"Family support"},
+
+  // Pets (5)
+  {category:"Pets", name:"Pet food"},
+  {category:"Pets", name:"Vet visits"},
+  {category:"Pets", name:"Medications"},
+  {category:"Pets", name:"Grooming"},
+  {category:"Pets", name:"Boarding"},
+];
+
+const STORAGE_KEY = "expense_tracker_v1";
+
+function fmtUSD(n) {
+  const x = Number(n || 0);
+  return x.toLocaleString(undefined, { style:"currency", currency:"USD" });
+}
+function safeNum(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+function monthKey(ym) { return ym || ""; }
+function itemKey(item) { return `${item.category}::${item.name}`; }
+
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { months:{} };
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return { months:{} };
+    if (!parsed.months) parsed.months = {};
+    return parsed;
+  } catch {
+    return { months:{} };
+  }
+}
+function saveDB(db) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+}
+function ensureMonth(db, ym) {
+  const k = monthKey(ym);
+  if (!db.months[k]) db.months[k] = { items:{} };
+  // Make sure all preset items exist in that month (but do not overwrite)
+  for (const it of PRESET_ITEMS) {
+    const ik = itemKey(it);
+    if (!db.months[k].items[ik]) db.months[k].items[ik] = { included:false, amount:0, note:"" };
+  }
+  return db;
+}
+
+function downloadText(filename, text) {
+  const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+const el = (id) => document.getElementById(id);
+
+function initMonthPicker() {
+  const m = el("month");
+  const now = new Date();
+  const y = now.getFullYear();
+  const mm = String(now.getMonth()+1).padStart(2,"0");
+  m.value = `${y}-${mm}`;
+}
+
+function uniqueCategories() {
+  const set = new Set(PRESET_ITEMS.map(x => x.category));
+  return ["All", ...Array.from(set).sort((a,b)=>a.localeCompare(b))];
+}
+
+function populateCategorySelect() {
+  const sel = el("category");
+  sel.innerHTML = "";
+  for (const c of uniqueCategories()) {
+    const opt = document.createElement("option");
+    opt.value = c;
+    opt.textContent = c;
+    sel.appendChild(opt);
+  }
+}
+
+function currentState() {
+  return {
+    ym: el("month").value,
+    category: el("category").value,
+    search: el("search").value.trim().toLowerCase(),
+    minAmt: el("minAmt").value.trim(),
+    maxAmt: el("maxAmt").value.trim(),
+    showOnlyIncluded: el("showOnlyIncluded").checked,
+    showOnlyNonZero: el("showOnlyNonZero").checked,
+  };
+}
+
+function filterItems(db, state) {
+  const month = db.months[monthKey(state.ym)];
+  const minAmt = state.minAmt === "" ? null : safeNum(state.minAmt);
+  const maxAmt = state.maxAmt === "" ? null : safeNum(state.maxAmt);
+
+  const rows = PRESET_ITEMS.map(it => {
+    const ik = itemKey(it);
+    const data = month.items[ik] || { included:false, amount:0, note:"" };
+    return { ...it, key: ik, included: !!data.included, amount: safeNum(data.amount), note: data.note || "" };
+  });
+
+  return rows.filter(r => {
+    if (state.category !== "All" && r.category !== state.category) return false;
+
+    if (state.search) {
+      const hay = (r.category + " " + r.name).toLowerCase();
+      if (!hay.includes(state.search)) return false;
+    }
+
+    if (state.showOnlyIncluded && !r.included) return false;
+    if (state.showOnlyNonZero && !(r.amount !== 0)) return false;
+
+    if (minAmt !== null && r.amount < minAmt) return false;
+    if (maxAmt !== null && r.amount > maxAmt) return false;
+
+    return true;
+  });
+}
+
+function renderTable(db) {
+  const state = currentState();
+  const month = db.months[monthKey(state.ym)];
+  const tbody = el("tbody");
+  tbody.innerHTML = "";
+
+  const rows = filterItems(db, state);
+
+  let shownSum = 0;
+  for (const r of rows) shownSum += r.amount;
+
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+
+    // Included checkbox
+    const tdInc = document.createElement("td");
+    const inc = document.createElement("input");
+    inc.type = "checkbox";
+    inc.className = "toggle";
+    inc.checked = r.included;
+    inc.addEventListener("change", () => {
+      month.items[r.key].included = inc.checked;
+      saveDB(db);
+      updateKPIs(db);
+      renderTable(db);
+    });
+    tdInc.appendChild(inc);
+    tr.appendChild(tdInc);
+
+    // Category
+    const tdCat = document.createElement("td");
+    tdCat.innerHTML = `<span class="pill">${escapeHtml(r.category)}</span>`;
+    tr.appendChild(tdCat);
+
+    // Name
+    const tdName = document.createElement("td");
+    tdName.textContent = r.name;
+    tr.appendChild(tdName);
+
+    // Amount
+    const tdAmt = document.createElement("td");
+    tdAmt.className = "right";
+    const amt = document.createElement("input");
+    amt.type = "number";
+    amt.step = "0.01";
+    amt.className = "mono";
+    amt.value = (r.amount === 0 ? "" : String(r.amount));
+    amt.placeholder = "0.00";
+    amt.addEventListener("input", () => {
+      month.items[r.key].amount = safeNum(amt.value);
+      // Do not spam save on every keystroke if empty
+      updateKPIs(db);
+      updatePills(rows, shownSum);
+    });
+    tdAmt.appendChild(amt);
+    tr.appendChild(tdAmt);
+
+    // Note
+    const tdNote = document.createElement("td");
+    const note = document.createElement("input");
+    note.type = "text";
+    note.value = r.note;
+    note.placeholder = "Optional note";
+    note.addEventListener("input", () => {
+      month.items[r.key].note = note.value;
+    });
+    tdNote.appendChild(note);
+    tr.appendChild(tdNote);
+
+    tbody.appendChild(tr);
+  }
+
+  updatePills(rows, shownSum);
+}
+
+function updatePills(rows, shownSum) {
+  el("countPill").textContent = `${rows.length} lines`;
+  el("sumPill").textContent = `${fmtUSD(shownSum)} shown`;
+}
+
+function updateKPIs(db) {
+  const state = currentState();
+  const month = db.months[monthKey(state.ym)];
+  let total = 0;
+  let active = 0;
+
+  for (const it of PRESET_ITEMS) {
+    const k = itemKey(it);
+    const d = month.items[k];
+    const amt = safeNum(d.amount);
+    total += amt;
+    if (d.included || amt !== 0) active += 1;
+  }
+
+  el("kpiTotal").textContent = fmtUSD(total);
+  el("kpiActive").textContent = String(active);
+  el("kpiAvg").textContent = fmtUSD(active ? total / active : 0);
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function saveAllNow(db) {
+  const state = currentState();
+  const month = db.months[monthKey(state.ym)];
+  // Inputs already wrote to month.items on input handlers; just persist now.
+  saveDB(db);
+  updateKPIs(db);
+  renderTable(db);
+}
+
+function exportJSON(db) {
+  const text = JSON.stringify(db, null, 2);
+  downloadText("expense-tracker-backup.json", text);
+}
+
+function exportCSV(db) {
+  const state = currentState();
+  const ym = state.ym;
+  const month = db.months[monthKey(ym)];
+
+  const headers = ["month","category","expense","included","amount","note"];
+  const lines = [headers.join(",")];
+
+  for (const it of PRESET_ITEMS) {
+    const k = itemKey(it);
+    const d = month.items[k] || { included:false, amount:0, note:"" };
+    const row = [
+      ym,
+      it.category,
+      it.name,
+      d.included ? "true" : "false",
+      String(safeNum(d.amount)),
+      (d.note || "").replaceAll('"','""')
+    ].map((v,i) => (i === 5 ? `"${v}"` : `"${String(v).replaceAll('"','""')}"`));
+    lines.push(row.join(","));
+  }
+
+  downloadText(`expenses-${ym}.csv`, lines.join("\n"));
+}
+
+function importJSON(db) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  input.addEventListener("change", async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const text = await file.text();
+    try {
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== "object" || !parsed.months) {
+        alert("Invalid JSON format.");
+        return;
+      }
+      // Merge parsed into db (favor imported values)
+      db.months = parsed.months;
+      // Ensure current month has all preset lines
+      ensureMonth(db, el("month").value);
+      saveDB(db);
+      updateKPIs(db);
+      renderTable(db);
+      alert("Import complete.");
+    } catch {
+      alert("Could not parse JSON.");
+    }
+  });
+  input.click();
+}
+
+function resetMonth(db) {
+  const ym = el("month").value;
+  if (!confirm(`Reset all amounts/notes for ${ym}? This cannot be undone.`)) return;
+
+  db.months[monthKey(ym)] = { items:{} };
+  ensureMonth(db, ym);
+  saveDB(db);
+  updateKPIs(db);
+  renderTable(db);
+}
+
+function attachEvents(db) {
+  const rerender = () => { ensureMonth(db, el("month").value); updateKPIs(db); renderTable(db); };
+
+  el("month").addEventListener("change", () => {
+    ensureMonth(db, el("month").value);
+    saveDB(db);
+    rerender();
+  });
+
+  el("category").addEventListener("change", rerender);
+  el("search").addEventListener("input", rerender);
+  el("minAmt").addEventListener("input", rerender);
+  el("maxAmt").addEventListener("input", rerender);
+  el("showOnlyIncluded").addEventListener("change", rerender);
+  el("showOnlyNonZero").addEventListener("change", rerender);
+
+  el("saveAll").addEventListener("click", () => saveAllNow(db));
+  el("exportJson").addEventListener("click", () => exportJSON(db));
+  el("exportCsv").addEventListener("click", () => exportCSV(db));
+  el("importJson").addEventListener("click", () => importJSON(db));
+  el("resetMonth").addEventListener("click", () => resetMonth(db));
+}
+
+(function main() {
+  // Basic sanity: we expect 191 preset lines
+  if (PRESET_ITEMS.length !== 191) {
+    console.warn("Preset item count is not 191. Current:", PRESET_ITEMS.length);
+  }
+
+  initMonthPicker();
+  populateCategorySelect();
+
+  let db = loadDB();
+  const ym = el("month").value;
+  db = ensureMonth(db, ym);
+  saveDB(db);
+
+  attachEvents(db);
+  updateKPIs(db);
+  renderTable(db);
+})();
+</script>
+</body>
+</html>
